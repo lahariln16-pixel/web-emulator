@@ -118,8 +118,8 @@ async function setupPage() {
 
     page = await browser.newPage({
         viewport: {
-            width: 1280,
-            height: 720
+            width: 1024,
+            height: 576
         }
     });
 
@@ -169,7 +169,8 @@ async function sendScreenshot(ws) {
     try {
 
         const screenshot = await page.screenshot({
-            type: "png"
+            type: "jpeg",
+            quality: 55
         });
 
         ws.send(screenshot);
@@ -194,7 +195,7 @@ wss.on("connection", async (ws) => {
 
         const interval = setInterval(() => {
             sendScreenshot(ws);
-        }, 200);
+        }, 500);
 
         let inputQueue = Promise.resolve();
 
@@ -209,6 +210,14 @@ wss.on("connection", async (ws) => {
                     );
 
                     if (!page || page.isClosed()) {
+                        return;
+                    }
+
+                    if (event.type === "ping") {
+                        return;
+                    }
+
+                    if (event.type === "ping") {
                         return;
                     }
 

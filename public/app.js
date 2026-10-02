@@ -20,7 +20,25 @@ function connectToBrowser() {
     socket.binaryType = "blob";
 
     socket.onopen = () => {
+
         console.log("Connected to remote Chromium");
+
+        if (window.browserPingTimer) {
+            clearInterval(window.browserPingTimer);
+        }
+
+        window.browserPingTimer = setInterval(() => {
+
+            if (socket.readyState === WebSocket.OPEN) {
+
+                socket.send(JSON.stringify({
+                    type: "ping"
+                }));
+
+            }
+
+        }, 30000);
+
     };
 
     socket.onmessage = (event) => {
@@ -80,10 +98,10 @@ screen.addEventListener("pointerdown", (event) => {
     const rect = browserImage.getBoundingClientRect();
 
     const x = (event.clientX - rect.left)
-        * (1280 / rect.width);
+        * (1024 / rect.width);
 
     const y = (event.clientY - rect.top)
-        * (720 / rect.height);
+        * (576 / rect.height);
 
     sendInput({
         type: "click",
