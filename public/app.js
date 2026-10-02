@@ -74,7 +74,12 @@ function connectToBrowser() {
 
         console.log("Remote browser disconnected");
 
-        setTimeout(connectToBrowser, 2000);
+        if (window.browserPingTimer) {
+            clearInterval(window.browserPingTimer);
+            window.browserPingTimer = null;
+        }
+
+        setTimeout(connectToBrowser, 3000);
     };
 }
 

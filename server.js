@@ -4,16 +4,148 @@ const dns = require("dns").promises;
 const net = require("net");
 const WebSocket = require("ws");
 const { chromium } = require("playwright");
+const crypto = require("crypto");
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 app.use(express.json());
+
+const sessions = new Set();
+
+function getCookie(req, name) {
+
+    const cookies = req.headers.cookie || "";
+
+    for (const part of cookies.split(";")) {
+
+        const [key, ...value] = part.trim().split("=");
+
+        if (key === name) {
+            return decodeURIComponent(value.join("="));
+        }
+    }
+
+    return null;
+}
+
+function isAuthenticated(req) {
+
+    const token = getCookie(req, "emulator_session");
+
+    return token && sessions.has(token);
+}
+
+function requireAuth(req, res, next) {
+
+    if (isAuthenticated(req)) {
+        return next();
+    }
+
+    if (req.path === "/login" || req.path === "/login.html") {
+        return next();
+    }
+
+    res.status(401).json({
+        success: false,
+        error: "Authentication required"
+    });
+}
+
+app.post("/login", (req, res) => {
+
+    const password = req.body.password || "";
+    const correctPassword = process.env.EMULATOR_PASSWORD;
+
+    if (!correctPassword) {
+
+        return res.status(500).json({
+            success: false,
+            error: "EMULATOR_PASSWORD is not configured"
+        });
+    }
+
+    if (password !== correctPassword) {
+
+        return res.status(401).json({
+            success: false,
+            error: "Incorrect password"
+        });
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+
+    sessions.add(token);
+
+    res.setHeader(
+        "Set-Cookie",
+        `emulator_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax;${process.env.NODE_ENV === "production" ? " Secure;" : ""}`
+    );
+
+    res.json({
+        success: true
+    });
+});
+
+app.post("/logout", requireAuth, (req, res) => {
+
+    const token = getCookie(req, "emulator_session");
+
+    if (token) {
+        sessions.delete(token);
+    }
+
+    res.setHeader(
+        "Set-Cookie",
+        "emulator_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax"
+    );
+
+    res.json({
+        success: true
+    });
+});
+
+app.get("/login", (req, res) => {
+
+    if (isAuthenticated(req)) {
+        return res.redirect("/");
+    }
+
+    res.sendFile(
+        require("path").join(__dirname, "public", "login.html")
+    );
+});
+
+app.get("/", (req, res, next) => {
+
+    if (!isAuthenticated(req)) {
+        return res.redirect("/login");
+    }
+
+    next();
+
+});
+
+app.use((req, res, next) => {
+
+    if (req.path === "/login.html") {
+        return next();
+    }
+
+    if (!isAuthenticated(req)) {
+        return res.redirect("/login");
+    }
+
+    next();
+
+});
+
 app.use(express.static("public"));
 
 let browser;
 let page;
+let browserStarting = null;
 
 function isPrivateIPv4(ip) {
     const parts = ip.split(".").map(Number);
@@ -130,21 +262,35 @@ async function setupPage() {
 
 async function startBrowser() {
 
-    console.log("Starting remote Chromium...");
+    if (browserStarting) {
+        return browserStarting;
+    }
 
-    const browserArgs =
-        process.env.NODE_ENV === "production"
-            ? []
-            : ["--ignore-certificate-errors"];
+    browserStarting = (async () => {
 
-    browser = await chromium.launch({
-        headless: true,
-        args: browserArgs
-    });
+        console.log("Starting remote Chromium...");
 
-    await setupPage();
+        const browserArgs =
+            process.env.NODE_ENV === "production"
+                ? []
+                : ["--ignore-certificate-errors"];
 
-    console.log("Remote Chromium started!");
+        browser = await chromium.launch({
+            headless: true,
+            args: browserArgs
+        });
+
+        await setupPage();
+
+        console.log("Remote Chromium started!");
+
+    })();
+
+    try {
+        await browserStarting;
+    } finally {
+        browserStarting = null;
+    }
 }
 
 async function getPage() {
@@ -185,7 +331,35 @@ async function sendScreenshot(ws) {
     }
 }
 
-wss.on("connection", async (ws) => {
+wss.on("connection", async (ws, request) => {
+
+    const cookie = request.headers.cookie || "";
+
+    let authenticated = false;
+
+    for (const part of cookie.split(";")) {
+
+        const [key, ...value] = part.trim().split("=");
+
+        if (key === "emulator_session") {
+
+            const token = decodeURIComponent(value.join("="));
+
+            if (sessions.has(token)) {
+                authenticated = true;
+            }
+
+        }
+    }
+
+    if (!authenticated) {
+
+        console.log("Rejected unauthenticated WebSocket");
+
+        ws.close();
+
+        return;
+    }
 
     console.log("Web emulator connected!");
 
@@ -196,6 +370,18 @@ wss.on("connection", async (ws) => {
         const interval = setInterval(() => {
             sendScreenshot(ws);
         }, 500);
+
+        const pingInterval = setInterval(() => {
+
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.ping();
+            }
+
+        }, 30000);
+
+        ws.on("pong", () => {
+            console.log("WebSocket pong received");
+        });
 
         let inputQueue = Promise.resolve();
 
@@ -277,6 +463,7 @@ wss.on("connection", async (ws) => {
             );
 
             clearInterval(interval);
+            clearInterval(pingInterval);
 
         });
 
