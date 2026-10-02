@@ -43,6 +43,45 @@ function connectToBrowser() {
 
     socket.onmessage = (event) => {
 
+        if (typeof event.data === "string") {
+
+            try {
+
+                const message =
+                    JSON.parse(event.data);
+
+                if (
+                    message.type ===
+                    "download-complete"
+                ) {
+
+                    screen.textContent =
+                        message.message;
+
+                }
+
+                else if (
+                    message.type ===
+                    "download-error"
+                ) {
+
+                    screen.textContent =
+                        message.message;
+
+                }
+
+            } catch (error) {
+
+                console.error(
+                    "WebSocket message error:",
+                    error
+                );
+
+            }
+
+            return;
+        }
+
         const imageUrl = URL.createObjectURL(event.data);
         const image = new Image();
 

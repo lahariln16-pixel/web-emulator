@@ -7,6 +7,7 @@ const path = require("path");
 
 const WebSocket = require("ws");
 const { chromium } = require("playwright");
+const { uploadFile } = require("./drive");
 
 const app = express();
 const server = http.createServer(app);
@@ -69,6 +70,8 @@ function createSession() {
 
         context: null,
         page: null,
+        ws: null,
+        isDownloading: false,
 
         createdAt: Date.now(),
         lastSeen: Date.now()
@@ -259,6 +262,92 @@ async function getBrowser() {
     return browser;
 }
 
+async function handleDownload(download, session) {
+
+    const filename =
+        download.suggestedFilename();
+
+    let filePath = null;
+
+    session.isDownloading = true;
+
+    console.log(
+        `Download detected: ${filename}`
+    );
+
+    try {
+
+        filePath =
+            await download.path();
+
+        if (!filePath) {
+            throw new Error(
+                "Could not obtain downloaded file"
+            );
+        }
+
+        const result =
+            await uploadFile(
+                filePath,
+                filename
+            );
+
+        console.log(
+            `✅ Uploaded "${filename}" to Google Drive`
+        );
+
+        console.log(
+            `Drive file ID: ${result.id}`
+        );
+
+        if (
+            session.ws &&
+            session.ws.readyState === WebSocket.OPEN
+        ) {
+
+            session.ws.send(
+                JSON.stringify({
+                    type: "download-complete",
+                    filename: filename,
+                    message:
+                        `✅ ${filename} saved to Google Drive`
+                })
+            );
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            `❌ Download upload failed for "${filename}":`,
+            error.message
+        );
+
+        if (
+            session.ws &&
+            session.ws.readyState === WebSocket.OPEN
+        ) {
+
+            session.ws.send(
+                JSON.stringify({
+                    type: "download-error",
+                    filename: filename,
+                    message:
+                        `❌ Failed to upload ${filename}`
+                })
+            );
+
+        }
+
+    } finally {
+
+        session.isDownloading = false;
+
+    }
+
+}
+
+
 async function getSessionPage(session) {
 
     session.lastSeen = Date.now();
@@ -291,6 +380,16 @@ async function getSessionPage(session) {
 
     session.page.setDefaultNavigationTimeout(
         30000
+    );
+
+    session.page.on(
+        "download",
+        (download) => {
+            handleDownload(
+                download,
+                session
+            );
+        }
     );
 
     console.log(
@@ -495,6 +594,10 @@ async function sendScreenshot(
         return;
     }
 
+    if (session.isDownloading) {
+        return;
+    }
+
     const page = session.page;
 
     if (
@@ -583,6 +686,8 @@ wss.on(
             return;
 
         }
+
+        session.ws = ws;
 
         console.log(
             "Web emulator connected to its own session!"
@@ -721,6 +826,10 @@ wss.on(
                     console.log(
                         "Web emulator WebSocket disconnected"
                     );
+
+                    if (session.ws === ws) {
+                        session.ws = null;
+                    }
 
                     clearInterval(
                         interval
