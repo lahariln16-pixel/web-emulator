@@ -1,0 +1,38 @@
+body {
+    margin: 0;
+    background: #111;
+    font-family: Arial, sans-serif;
+}
+
+.toolbar {
+    height: 60px;
+
+    display: flex;
+    align-items: center;
+
+    gap: 8px;
+    padding: 10px;
+
+    background: #222;
+}
+
+button {
+    height: 40px;
+    padding: 0 15px;
+}
+
+#url {
+    flex: 1;
+    height: 36px;
+    padding: 0 10px;
+}
+
+#screen {
+    height: calc(100vh - 80px);
+
+    background: white;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
