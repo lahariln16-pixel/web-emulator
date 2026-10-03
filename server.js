@@ -72,6 +72,7 @@ function createSession() {
         page: null,
         ws: null,
         isDownloading: false,
+        screenshotBusy: false,
 
         createdAt: Date.now(),
         lastSeen: Date.now()
@@ -598,6 +599,10 @@ async function sendScreenshot(
         return;
     }
 
+    if (session.screenshotBusy) {
+        return;
+    }
+
     const page = session.page;
 
     if (
@@ -607,6 +612,8 @@ async function sendScreenshot(
         return;
     }
 
+    session.screenshotBusy = true;
+
     try {
 
         const screenshot =
@@ -614,11 +621,18 @@ async function sendScreenshot(
 
                 type: "jpeg",
 
-                quality: 55
+                quality: 45
 
             });
 
-        ws.send(screenshot);
+        if (
+            ws.readyState ===
+            WebSocket.OPEN
+        ) {
+
+            ws.send(screenshot);
+
+        }
 
     } catch (error) {
 
@@ -626,6 +640,10 @@ async function sendScreenshot(
             "Screenshot error:",
             error.message
         );
+
+    } finally {
+
+        session.screenshotBusy = false;
 
     }
 
@@ -707,7 +725,7 @@ wss.on(
                         session
                     );
 
-                }, 500);
+                }, 750);
 
             const pingInterval =
                 setInterval(() => {
