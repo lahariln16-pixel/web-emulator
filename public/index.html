@@ -1,31 +1,17 @@
 <!DOCTYPE html>
-<html>
-<head>
-    <title>Web Emulator</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Web Emulator 2.0</title><link rel="stylesheet" href="style.css"></head>
 <body>
-
-    <div class="toolbar">
-        <button id="back">←</button>
-        <button id="forward">→</button>
-        <button id="reload">⟳</button>
-
-        <input
-            id="url"
-            type="text"
-            placeholder="Enter URL..."
-        >
-
-        <button id="go">GO</button>
-    </div>
-
-    <div id="screen">
-        Enter a URL above.
-    </div>
-
-    <script src="app.js"></script>
-
-</body>
-</html>
+<header class="topbar"><div class="brand"><span class="brand-mark">◈</span><span>WEB<span class="brand-accent">EMU</span></span><small>2.0</small></div><div class="status"><span class="status-dot"></span><span>ISOLATED SESSION</span></div></header>
+<main class="browser-shell">
+  <div class="tabbar"><div id="tabs" class="tabs" role="tablist" aria-label="Browser tabs"></div><button id="new-tab" class="new-tab" title="New tab" aria-label="New tab">+</button></div>
+  <div class="toolbar"><div class="nav-buttons"><button id="back" class="icon-button" title="Back" aria-label="Back">←</button><button id="forward" class="icon-button" title="Forward" aria-label="Forward">→</button><button id="reload" class="icon-button" title="Reload" aria-label="Reload">↻</button></div>
+    <form id="address-form" class="address-form"><span class="address-lock">⌁</span><input id="url" type="text" autocomplete="url" spellcheck="false" placeholder="Enter a website URL…"><button id="go" type="submit">GO <span>↵</span></button></form>
+    <button id="refresh-tabs" class="icon-button utility-button" title="Refresh tabs" aria-label="Refresh tabs">▦</button>
+  </div>
+  <section class="viewport-wrap"><div class="viewport-label"><span>REMOTE CHROMIUM</span><span id="page-title">Ready for navigation</span></div>
+    <div id="screen" tabindex="0" aria-label="Remote browser viewport"><div class="empty-state"><div class="empty-icon">◈</div><h1>Your browser workspace</h1><p>Enter a URL above or open a new tab to get started.</p></div></div>
+    <footer class="browser-footer"><span><i></i> Browser connected through Playwright</span><span id="tab-count">1 TAB</span></footer>
+  </section>
+</main><div id="toast" class="toast" role="status" aria-live="polite"></div><script src="app.js"></script>
+</body></html>
