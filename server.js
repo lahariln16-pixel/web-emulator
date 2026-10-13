@@ -353,55 +353,43 @@ async function getSessionPage(session) {
 
     session.lastSeen = Date.now();
 
-    await getBrowser();
-
-    if (
-        session.page &&
-        !session.page.isClosed()
-    ) {
+    if (session.page && !session.page.isClosed()) {
         return session.page;
     }
 
-    console.log(
-        "Creating isolated browser session..."
-    );
+    if (session.pageStarting) {
+        return session.pageStarting;
+    }
 
-    session.context =
-        await browser.newContext({
+    session.pageStarting = (async () => {
 
-            viewport: {
-                width: 1024,
-                height: 576
-            }
+        await getBrowser();
 
-        });
-
-    session.page =
-        await session.context.newPage();
-
-    session.page.setDefaultNavigationTimeout(
-        30000
-    );
-
-    session.page.on(
-        "download",
-        (download) => {
-            handleDownload(
-                download,
-                session
-            );
+        // Reuse the session context when possible so existing tabs and
+        // cookies survive an active-page close or a WebSocket reconnect.
+        if (!session.context || session.context.isClosed()) {
+            session.context = await browser.newContext({
+                viewport: { width: 1024, height: 576 }
+            });
         }
-    );
 
-    console.log(
-        "Isolated browser session created!"
-    );
+        const page = await session.context.newPage();
+        page.setDefaultNavigationTimeout(30000);
+        page.on("download", download => handleDownload(download, session));
+        session.page = page;
 
-    return session.page;
+        console.log("Isolated browser page ready!");
+        return page;
+
+    })();
+
+    try {
+        return await session.pageStarting;
+    } finally {
+        session.pageStarting = null;
+    }
 
 }
-
-require("./tab-routes")(app, { sessions, getSessionPage });
 
 /*
 ====================================================
