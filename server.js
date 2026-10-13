@@ -395,6 +395,35 @@ require("./tab-routes")(app, { sessions, getSessionPage, handleDownload });
 
 /*
 ====================================================
+REMOTE PAGE LINK CONTEXT MENU
+====================================================
+*/
+
+app.post("/context-link", async (req, res) => {
+    try {
+        const x = Number(req.body.x);
+        const y = Number(req.body.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 || x > 1024 || y > 576) {
+            return res.status(400).json({ success: false, error: "Invalid viewport coordinates" });
+        }
+
+        const session = getSession(req);
+        const page = await getSessionPage(session);
+        const link = await page.evaluate(({ x, y }) => {
+            const element = document.elementFromPoint(x, y);
+            const anchor = element && element.closest ? element.closest("a[href]") : null;
+            if (!anchor) return null;
+            return { href: anchor.href, text: (anchor.innerText || anchor.getAttribute("aria-label") || "").trim().slice(0, 200) };
+        }, { x, y });
+
+        res.json({ success: true, link });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/*
+====================================================
 URL SECURITY
 ====================================================
 */
