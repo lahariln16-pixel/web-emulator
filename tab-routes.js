@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 
-module.exports = function registerTabRoutes(app, { sessions, getSessionPage }) {
+module.exports = function registerTabRoutes(app, { sessions, getSessionPage, handleDownload }) {
     function sessionFor(req) {
         const raw = (req.headers.cookie || "").split(";").map(p => p.trim()).find(p => p.startsWith("emulator_session="));
         if (!raw) return null;
@@ -38,6 +38,7 @@ module.exports = function registerTabRoutes(app, { sessions, getSessionPage }) {
             await getSessionPage(session);
             const page = await session.context.newPage();
             page.setDefaultNavigationTimeout(30000);
+            page.on("download", download => handleDownload(download, session));
             ensureId(session, page); session.page = page; session.lastSeen = Date.now();
             res.json({ success:true, tabs:await describeTabs(session), activeTabId:page.__emulatorTabId });
         } catch (e) { res.status(500).json({ success:false, error:e.message }); }
@@ -65,7 +66,7 @@ module.exports = function registerTabRoutes(app, { sessions, getSessionPage }) {
             let remaining = session.context.pages().filter(p => !p.isClosed());
             if (!remaining.length) {
                 const replacement = await session.context.newPage();
-                replacement.setDefaultNavigationTimeout(30000); ensureId(session,replacement);
+                replacement.setDefaultNavigationTimeout(30000); replacement.on("download", download => handleDownload(download, session)); ensureId(session,replacement);
                 remaining = [replacement];
             }
             if (wasActive) session.page = remaining[remaining.length - 1];
