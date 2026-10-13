@@ -14,7 +14,7 @@ async function activateTab(id){try{const d=await api(`/tabs/${encodeURIComponent
 async function createTab(){try{const d=await api("/tabs",{method:"POST",body:"{}"});tabs=d.tabs||[];activeTabId=d.activeTabId||null;urlInput.value="";pageTitle.textContent="New tab";renderTabs();screen.focus()}catch(e){showToast(e.message)}}
 async function closeTab(id){try{const d=await api(`/tabs/${encodeURIComponent(id)}`,{method:"DELETE"});tabs=d.tabs||[];activeTabId=d.activeTabId||null;urlInput.value=d.url==="about:blank"?"":(d.url||"");pageTitle.textContent=tabs.find(t=>t.id===activeTabId)?.title||"New tab";renderTabs()}catch(e){showToast(e.message)}}
 async function sendCommand(endpoint,body={}){try{const d=await api(endpoint,{method:"POST",body:JSON.stringify(body)});if(d.url)urlInput.value=d.url;if(d.title)pageTitle.textContent=d.title;await refreshTabs()}catch(e){showToast(e.message);console.error("Command error:",e)}}
-screen.addEventListener("pointerdown",e=>{if(!browserImage)return;screen.focus();const r=browserImage.getBoundingClientRect();if(!r.width||!r.height)return;sendInput({type:"click",x:(e.clientX-r.left)*(1024/r.width),y:(e.clientY-r.top)*(576/r.height)})});
+screen.addEventListener("pointerdown",e=>{if(e.button!==0||!browserImage)return;screen.focus();const r=browserImage.getBoundingClientRect();if(!r.width||!r.height)return;sendInput({type:"click",x:(e.clientX-r.left)*(1024/r.width),y:(e.clientY-r.top)*(576/r.height)})});
 const linkMenu=document.createElement("div");linkMenu.className="link-context-menu";linkMenu.hidden=true;linkMenu.innerHTML='<button type="button">Copy link address</button>';document.body.append(linkMenu);
 let contextLink=null;
 function hideLinkMenu(){linkMenu.hidden=true;contextLink=null}
