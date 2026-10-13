@@ -391,6 +391,8 @@ async function getSessionPage(session) {
 
 }
 
+require("./tab-routes")(app, { sessions, getSessionPage, handleDownload });
+
 /*
 ====================================================
 URL SECURITY
