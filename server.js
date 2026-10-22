@@ -73,6 +73,9 @@ function createSession() {
         ws: null,
         isDownloading: false,
         screenshotBusy: false,
+        mode: "screenshots",
+        viewport: { width: 1024, height: 576 },
+        lastFrameAt: 0,
 
         createdAt: Date.now(),
         lastSeen: Date.now()
@@ -369,11 +372,12 @@ async function getSessionPage(session) {
         // cookies survive an active-page close or a WebSocket reconnect.
         if (!session.context || session.context.isClosed()) {
             session.context = await browser.newContext({
-                viewport: { width: 1024, height: 576 }
+                viewport: session.viewport || { width: 1024, height: 576 }
             });
         }
 
         const page = await session.context.newPage();
+        if (session.viewport) await page.setViewportSize(session.viewport);
         page.setDefaultNavigationTimeout(30000);
         page.on("download", download => handleDownload(download, session));
         session.page = page;
@@ -395,6 +399,57 @@ require("./tab-routes")(app, { sessions, getSessionPage, handleDownload });
 
 /*
 ====================================================
+DISPLAY MODE AND VIEWPORT SETTINGS
+====================================================
+*/
+
+const allowedViewports = new Map([
+    ["256x144", { width: 256, height: 144 }],
+    ["426x240", { width: 426, height: 240 }],
+    ["640x360", { width: 640, height: 360 }],
+    ["854x480", { width: 854, height: 480 }],
+    ["1024x576", { width: 1024, height: 576 }],
+    ["1280x720", { width: 1280, height: 720 }]
+]);
+
+app.get("/settings", (req, res) => {
+    const session = getSession(req);
+    if (!session) return res.status(401).json({ success: false, error: "Session expired" });
+    res.json({
+        success: true,
+        mode: session.mode || "screenshots",
+        viewport: session.viewport || { width: 1024, height: 576 }
+    });
+});
+
+app.post("/settings", async (req, res) => {
+    try {
+        const session = getSession(req);
+        if (!session) return res.status(401).json({ success: false, error: "Session expired" });
+        const mode = req.body.mode;
+        const sizeKey = String(req.body.resolution || "");
+        if (mode !== undefined && !["screenshots", "video"].includes(mode)) {
+            return res.status(400).json({ success: false, error: "Choose Screenshot Mode or Live Stream Mode" });
+        }
+        if (req.body.resolution !== undefined && !allowedViewports.has(sizeKey)) {
+            return res.status(400).json({ success: false, error: "Unsupported resolution" });
+        }
+        if (mode) session.mode = mode;
+        if (allowedViewports.has(sizeKey)) {
+            session.viewport = { ...allowedViewports.get(sizeKey) };
+            if (session.context && !session.context.isClosed()) {
+                await Promise.all(session.context.pages().filter(page => !page.isClosed()).map(page => page.setViewportSize(session.viewport)));
+            }
+        }
+        session.lastSeen = Date.now();
+        res.json({ success: true, mode: session.mode, viewport: session.viewport });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/*
+====================================================
 REMOTE PAGE LINK CONTEXT MENU
 ====================================================
 */
@@ -403,11 +458,12 @@ app.post("/context-link", async (req, res) => {
     try {
         const x = Number(req.body.x);
         const y = Number(req.body.y);
-        if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 || x > 1024 || y > 576) {
+        const session = getSession(req);
+        const viewport = session && session.viewport ? session.viewport : { width: 1024, height: 576 };
+        if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 || x > viewport.width || y > viewport.height) {
             return res.status(400).json({ success: false, error: "Invalid viewport coordinates" });
         }
 
-        const session = getSession(req);
         const page = await getSessionPage(session);
         const link = await page.evaluate(({ x, y }) => {
             const element = document.elementFromPoint(x, y);
@@ -633,6 +689,9 @@ async function sendScreenshot(
         return;
     }
 
+    const frameInterval = session.mode === "video" ? 120 : 750;
+    const now = Date.now();
+    if (now - (session.lastFrameAt || 0) < frameInterval) return;
     session.screenshotBusy = true;
 
     try {
@@ -642,7 +701,7 @@ async function sendScreenshot(
 
                 type: "jpeg",
 
-                quality: 45
+                quality: session.mode === "video" ? 58 : 45
 
             });
 
@@ -652,6 +711,7 @@ async function sendScreenshot(
         ) {
 
             ws.send(screenshot);
+            session.lastFrameAt = Date.now();
 
         }
 
@@ -746,7 +806,7 @@ wss.on(
                         session
                     );
 
-                }, 750);
+                }, 80);
 
             const pingInterval =
                 setInterval(() => {

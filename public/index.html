@@ -1,17 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Web Emulator 2.0</title><link rel="stylesheet" href="style.css"></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Web Emulator 2.0</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="mode.css"></head>
 <body>
 <header class="topbar"><div class="brand"><span class="brand-mark">◈</span><span>WEB<span class="brand-accent">EMU</span></span><small>2.0</small></div><div class="status"><span class="status-dot"></span><span>ISOLATED SESSION</span></div></header>
 <main class="browser-shell">
   <div class="tabbar"><div id="tabs" class="tabs" role="tablist" aria-label="Browser tabs"></div><button id="new-tab" class="new-tab" title="New tab" aria-label="New tab">+</button></div>
   <div class="toolbar"><div class="nav-buttons"><button id="back" class="icon-button" title="Back" aria-label="Back">←</button><button id="forward" class="icon-button" title="Forward" aria-label="Forward">→</button><button id="reload" class="icon-button" title="Reload" aria-label="Reload">↻</button></div>
     <form id="address-form" class="address-form"><span class="address-lock">⌁</span><input id="url" type="text" autocomplete="url" spellcheck="false" placeholder="Enter a website URL…"><button id="go" type="submit">GO <span>↵</span></button></form>
-    <button id="refresh-tabs" class="icon-button utility-button" title="Refresh tabs" aria-label="Refresh tabs">▦</button>
+    <label class="resolution-control" for="resolution-select">VIEW</label><select id="resolution-select" aria-label="Remote viewport resolution"><option value="256x144">256 × 144</option><option value="426x240">426 × 240</option><option value="640x360">640 × 360</option><option value="854x480">854 × 480</option><option value="1024x576" selected>1024 × 576</option><option value="1280x720">1280 × 720 · 720p</option></select><button id="change-mode" class="icon-button mode-button" title="Change viewing mode">◉ Mode</button><button id="refresh-tabs" class="icon-button utility-button" title="Refresh tabs" aria-label="Refresh tabs">▦</button>
   </div>
   <section class="viewport-wrap"><div class="viewport-label"><span>REMOTE CHROMIUM</span><span id="page-title">Ready for navigation</span></div>
     <div id="screen" tabindex="0" aria-label="Remote browser viewport"><div class="empty-state"><div class="empty-icon">◈</div><h1>Your browser workspace</h1><p>Enter a URL above or open a new tab to get started.</p></div></div>
     <footer class="browser-footer"><span><i></i> Browser connected through Playwright</span><span id="tab-count">1 TAB</span></footer>
   </section>
-</main><div id="toast" class="toast" role="status" aria-live="polite"></div><script src="app.js"></script>
+</main>
+<div id="mode-chooser" class="mode-overlay" role="dialog" aria-modal="true" aria-labelledby="mode-heading">
+  <div class="mode-dialog">
+    <div class="mode-eyebrow">WEB EMU · DISPLAY SETUP</div>
+    <h1 id="mode-heading">How would you like to browse?</h1>
+    <p class="mode-intro">Choose a viewing style. You can change it any time.</p>
+    <label class="dialog-resolution" for="start-resolution">Remote browser resolution
+      <select id="start-resolution"><option value="256x144">256 × 144 · minimum</option><option value="426x240">426 × 240</option><option value="640x360">640 × 360</option><option value="854x480">854 × 480</option><option value="1024x576" selected>1024 × 576 · default</option><option value="1280x720">1280 × 720 · 720p</option></select>
+    </label>
+    <div class="mode-cards">
+      <button class="mode-card" id="choose-screenshots" type="button"><span class="mode-icon">▧</span><strong>Screenshot Mode</strong><span>Default mode · lighter and steady</span><em>Open browser →</em></button>
+      <button class="mode-card stream-card" id="choose-video" type="button"><span class="mode-icon">▶</span><strong>Live Stream Mode</strong><span>Faster continuous browser frames</span><em>Start live view →</em></button>
+    </div>
+    <p class="mode-note">The selected size changes the remote browser viewport, not just the display scaling.</p>
+  </div>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div><script src="app.js"></script>
 </body></html>
