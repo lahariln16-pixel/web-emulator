@@ -37,6 +37,7 @@ module.exports = function registerTabRoutes(app, { sessions, getSessionPage, han
             if (!session) return res.status(401).json({ success:false, error:"Session expired" });
             await getSessionPage(session);
             const page = await session.context.newPage();
+            if (session.viewport) await page.setViewportSize(session.viewport);
             page.setDefaultNavigationTimeout(30000);
             page.on("download", download => handleDownload(download, session));
             ensureId(session, page); session.page = page; session.lastSeen = Date.now();
@@ -66,6 +67,7 @@ module.exports = function registerTabRoutes(app, { sessions, getSessionPage, han
             let remaining = session.context.pages().filter(p => !p.isClosed());
             if (!remaining.length) {
                 const replacement = await session.context.newPage();
+                if (session.viewport) await replacement.setViewportSize(session.viewport);
                 replacement.setDefaultNavigationTimeout(30000); replacement.on("download", download => handleDownload(download, session)); ensureId(session,replacement);
                 remaining = [replacement];
             }
