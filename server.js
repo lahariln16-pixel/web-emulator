@@ -377,6 +377,7 @@ async function getSessionPage(session) {
         }
 
         const page = await session.context.newPage();
+        if (session.viewport) await page.setViewportSize(session.viewport);
         page.setDefaultNavigationTimeout(30000);
         page.on("download", download => handleDownload(download, session));
         session.page = page;
