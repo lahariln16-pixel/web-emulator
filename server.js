@@ -396,6 +396,7 @@ async function getSessionPage(session) {
 }
 
 require("./tab-routes")(app, { sessions, getSessionPage, handleDownload });
+require("./page-export")(app, { getSessionPage, getSession });
 
 /*
 ====================================================
