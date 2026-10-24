@@ -26,7 +26,7 @@ module.exports = function registerPageExport(app, { getSessionPage, getSession }
             const unique = [...new Map(resources.map(r => [r.url, r])).values()];
             for (const resource of unique) {
                 try {
-                    const response = await page.request.get(resource.url, { timeout: 10000 });
+                    const response = await page.context().request.get(resource.url, { timeout: 10000 });
                     if (!response.ok()) continue;
                     const body = await response.body();
                     if (body.length > 8 * 1024 * 1024) continue;
